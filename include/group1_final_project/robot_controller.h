@@ -38,12 +38,15 @@ public:
     void SendRobotToJointValues(std::vector<double> joint_values);
     bool DropPart(geometry_msgs::Pose pose);
     bool DropPartExchange(geometry_msgs::Pose pose);
+    bool DropPartFlipped(geometry_msgs::Pose pose);
     void GripperToggle(const bool& state);
     void GripperCallback(const osrf_gear::VacuumGripperState::ConstPtr& grip);
+    void JointStatesCallback(const sensor_msgs::JointState::ConstPtr& state);
     void GripperStateCheck(geometry_msgs::Pose pose);
     bool PickAndPlaceUpdated(geometry_msgs::Pose pick_pose, geometry_msgs::Pose place_pose);
     bool PickPart(geometry_msgs::Pose& part_pose,std::string product_type);
     bool DiscardPart(geometry_msgs::Pose pose);
+    std::vector<double> getJointStates();
 
 private:
     ros::NodeHandle robot_controller_nh_;
@@ -51,6 +54,7 @@ private:
     ros::ServiceClient gripper_client_;
     ros::NodeHandle gripper_nh_;
     ros::Subscriber gripper_subscriber_;
+    ros::Subscriber robot_joint_state_sub;
 
     tf::TransformListener robot_tf_listener_;
     tf::StampedTransform robot_tf_transform_;
@@ -64,6 +68,8 @@ private:
 
     osrf_gear::VacuumGripperControl gripper_service_;
     osrf_gear::VacuumGripperState gripper_status_;
+    std::vector<double> arm_joint_state_;
+
 
     std::string object;
     bool plan_success_;

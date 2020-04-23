@@ -28,7 +28,7 @@ robot_move_group_(robot_controller_options) {
     //--These are joint positions used for the home position
 
     // home_joint_pose_ = {-0.15, 3.14, -2.43, -1.63, -0.63, 1.51, 0.88};  //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-    home_joint_pose_ = {0, 3.14, -2, 2.6, 3.9, 4.7, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}   //bin position
+    home_joint_pose_ = {0, 3.14, -2, 2.6, 4.1, 4.7, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}   //bin position
 
     if(arm_id=="arm1") agv_drop_position_ = {1.00, 1.13, -1.34, 2.0, 4.12, 4.67, -4.27};  
     else agv_drop_position_ = {-1.00, 4.46, -1.34, 2.0, 4.12, 4.67, -4.27};
@@ -40,6 +40,10 @@ robot_move_group_(robot_controller_options) {
     //--topic used to get the status of the gripper
     gripper_subscriber_ = gripper_nh_.subscribe(
             "/ariac/"+arm_id+"/gripper/state", 10, &RobotController::GripperCallback, this);
+
+    robot_joint_state_sub = robot_controller_nh_.subscribe(
+            "/ariac/"+arm_id+"/joint_states", 10, &RobotController::JointStatesCallback, this);
+
 
     ROS_INFO_STREAM("Sending robot "<< arm_id << " home");
     SendRobotHome();
@@ -288,6 +292,70 @@ bool RobotController::DropPart(geometry_msgs::Pose part_pose) {
     return gripper_state_;
 }
 
+bool RobotController::DropPartFlipped(geometry_msgs::Pose part_pose) {
+
+    auto temp_pose_1 = part_pose;
+    temp_pose_1.position.z += 0.3;
+    ROS_INFO_STREAM("Actuating the gripper!");
+    this->GripperToggle(true);
+    ROS_INFO_STREAM("Going to waypoint...");
+    
+    this->GoToTarget(part_pose);
+    ros::Duration(0.1).sleep();
+    this->GoToTarget(temp_pose_1);
+    // if(product_type=="piston_rod_part") this->GoToTarget(part_pose, delay);    // For conveyor belt pick-ups
+    // else this->GoToTarget(part_pose);
+    ros::spinOnce();
+    while (!gripper_state_) {
+        part_pose.position.z -= 0.007;
+        this->GoToTarget(part_pose);
+        ros::Duration(0.3).sleep();
+        this->GoToTarget(temp_pose_1);
+        ROS_INFO_STREAM("Actuating the gripper...");
+        this->GripperToggle(true);
+        ros::spinOnce();
+    }
+
+    drop_flag_ = true;
+    float delay=1.8;
+    ros::spinOnce();
+    ROS_INFO_STREAM("Flipping part...");
+
+    if (gripper_state_){//--while the part is still attached to the gripper
+        
+        // ROS_INFO_STREAM("Moving towards bin to place it vertically...");
+        
+        target_pose_.position = part_pose.position;
+        target_pose_.orientation = part_pose.orientation;
+        ros::AsyncSpinner spinner(4);
+        // target_pose_.position.y -= 0.1;
+        target_pose_.position.x += 0.1;
+        target_pose_.position.z += 0.05;
+        robot_move_group_.setPoseTarget(target_pose_);
+        spinner.start();
+        if (this->Planner()) {
+            robot_move_group_.move();
+            ros::Duration(1.1).sleep();
+        }
+        ROS_INFO_STREAM("Placed vertically reached...");
+        ROS_INFO_STREAM("Actuating the gripper...");
+        this->GripperToggle(false);
+        ros::spinOnce();
+
+        // this->GoToTarget(part_pose);
+        // ros::Duration(2.0).sleep();
+
+
+       // if (!gripper_state_) {
+       //      ROS_INFO_STREAM("Going to home position...");
+       //      this->SendRobotHome();
+       // }
+    }
+
+    drop_flag_ = false;
+    return gripper_state_;
+}
+
 
 
 bool RobotController::DiscardPart(geometry_msgs::Pose part_pose) {
@@ -302,11 +370,14 @@ bool RobotController::DiscardPart(geometry_msgs::Pose part_pose) {
     temp_pose.position.z += 0.15;
     part_pose.position.z += 0.02;
     this->GoToTarget({part_pose, temp_pose});
-    ros::Duration(1.0).sleep();
+    ros::Duration(0.5).sleep();
+    // this->GoToTarget(temp_pose);
     ros::spinOnce();
     while (!gripper_state_) {
         part_pose.position.z -= 0.007;
         this->GoToTarget({part_pose, temp_pose});
+        ros::Duration(0.3).sleep();
+        // this->GoToTarget(temp_pose);
         ROS_INFO_STREAM("Actuating the gripper...");
         this->GripperToggle(true);
         ros::spinOnce();
@@ -369,6 +440,15 @@ void RobotController::GripperCallback(
     gripper_state_ = grip->attached;
 }
 
+void RobotController::JointStatesCallback(
+    const sensor_msgs::JointState::ConstPtr& state) {
+    arm_joint_state_ = state->position;
+}
+
+std::vector<double> RobotController::getJointStates() {
+    return arm_joint_state_;
+}
+
 
 bool RobotController::PickPart(geometry_msgs::Pose& part_pose, std::string product_type) {
     float delay=1.8;
@@ -386,7 +466,6 @@ bool RobotController::PickPart(geometry_msgs::Pose& part_pose, std::string produ
      if(product_type=="gear_part")
     {
         part_pose.position.z += 0.028;
-        //part_pose.position.y -= 0.8;
     }
     else if (product_type=="piston_rod_part"){
         part_pose.position.z += 0.0178;
@@ -397,19 +476,22 @@ bool RobotController::PickPart(geometry_msgs::Pose& part_pose, std::string produ
     
     
     auto temp_pose_1 = part_pose;
-    temp_pose_1.position.z += 0.3;
-    // temp_pose_1.position.z += 0.75;
+    temp_pose_1.position.z += 0.15;
     ROS_INFO_STREAM("Actuating the gripper!");
     this->GripperToggle(true);
     ROS_INFO_STREAM("Going to waypoint...");
     
-    this->GoToTarget({part_pose, temp_pose_1});
+    this->GoToTarget(part_pose);
+    ros::Duration(0.5).sleep();
+    this->GoToTarget(temp_pose_1);
     // if(product_type=="piston_rod_part") this->GoToTarget(part_pose, delay);    // For conveyor belt pick-ups
     // else this->GoToTarget(part_pose);
     ros::spinOnce();
     while (!gripper_state_) {
-        //part_pose.position.z -= 0.007;
-        this->GoToTarget({part_pose, temp_pose_1});
+        part_pose.position.z -= 0.007;
+        this->GoToTarget(part_pose);
+        ros::Duration(0.3).sleep();
+        this->GoToTarget(temp_pose_1);
         ROS_INFO_STREAM("Actuating the gripper...");
         this->GripperToggle(true);
         ros::spinOnce();

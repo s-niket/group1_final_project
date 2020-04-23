@@ -274,14 +274,21 @@ bool AriacOrderManager::PickPartFlip(geometry_msgs::Pose part_pose, std::string 
     exchange_pose.position.x = 0.27;
     exchange_pose.position.y = 0;
     exchange_pose.position.z = 1.0;
-    exchange_pose.orientation.x = 0.707;
-    exchange_pose.orientation.w = 0.707;
+    // exchange_pose.orientation.x = 0.707;
+    // exchange_pose.orientation.w = 0.707;
 
     if(pick_arm == "arm1") {
-        failed_pick = arm1_.PickPart(part_pose, product_type);
-        std::vector<double> exchange_joint_pose = {0, 4.6, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-        arm1_.SendRobotToJointValues(exchange_joint_pose);
-        arm1_.DropPartExchange(exchange_pose);
+        // failed_pick = arm1_.PickPart(part_pose, product_type);
+        // std::vector<double> exchange_joint_pose = {0, 4.6, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
+        // auto flip_pose = arm1_.getJointStates();
+        // flip_pose[0] += 0.5;
+        // std::vector<double> flip_joint_pose = {0, 3.14, -2, 2.6, 3.9, 0, 0};
+        // arm1_.SendRobotToJointValues(flip_joint_pose);
+        // part_pose.position.y -= 0.05;
+        // part_pose.orientation.x = 0.707;
+        // part_pose.orientation.w = 0.707;
+
+        arm1_.DropPartFlipped(part_pose);
     }
     else {
         failed_pick = arm2_.PickPart(part_pose, product_type);
@@ -414,7 +421,6 @@ void AriacOrderManager::ExecuteOrder() {
                 //ROS_INFO_STREAM("Product type: " << product_type_pose_.first);
                 product_type_pose_.second = product.pose;
                 // ROS_INFO_STREAM("Order Count: " << i);
-                ROS_INFO_STREAM("Product pose: " << product_type_pose_.second.position.x);
                 // do {
                 //     pick_n_place_success =  PickAndPlace(product_type_pose_, agv_id);    
                 // }
