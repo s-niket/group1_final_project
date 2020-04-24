@@ -330,7 +330,7 @@ bool RobotController::DropPartFlipped(geometry_msgs::Pose part_pose) {
         ros::AsyncSpinner spinner(4);
         // target_pose_.position.y -= 0.1;
         target_pose_.position.x += 0.1;
-        target_pose_.position.z += 0.05;
+        target_pose_.position.z += 0.035;
         robot_move_group_.setPoseTarget(target_pose_);
         spinner.start();
         if (this->Planner()) {
@@ -341,16 +341,22 @@ bool RobotController::DropPartFlipped(geometry_msgs::Pose part_pose) {
         ROS_INFO_STREAM("Actuating the gripper...");
         this->GripperToggle(false);
         ros::spinOnce();
-
-        // this->GoToTarget(part_pose);
-        // ros::Duration(2.0).sleep();
-
-
-       // if (!gripper_state_) {
-       //      ROS_INFO_STREAM("Going to home position...");
-       //      this->SendRobotHome();
-       // }
     }
+
+    target_pose_.position.x -= 0.2;
+    target_pose_.position.z += 0.2;
+    this->GoToTarget(target_pose_);
+
+    target_pose_.position.x += 0.4;
+    this->GoToTarget(target_pose_);
+
+    target_pose_.position.z -= 0.2;
+    this->GoToTarget(target_pose_);
+
+    target_pose_.position.x -= 0.15;
+    this->GoToTarget(target_pose_);         
+    std::string product_type = "pulley_part";
+    
 
     drop_flag_ = false;
     return gripper_state_;

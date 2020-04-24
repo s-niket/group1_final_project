@@ -238,14 +238,14 @@ std::string AriacOrderManager::GetProductFrame(std::string product_type) {
     
 }
 
-bool AriacOrderManager::PickPartExchange(geometry_msgs::Pose part_pose, std::string product_type, std::string arm1, std::string arm2) {
+bool AriacOrderManager::PickPartExchange(geometry_msgs::Pose part_pose, std::string product_type, std::string pick_arm, std::string place_arm) {
     bool failed_pick;
     geometry_msgs::Pose exchange_pose;
     exchange_pose.position.x = 0.27;
     exchange_pose.position.y = 0;
     exchange_pose.position.z = 1.0;
 
-    if(arm1 == "arm1")    {
+    if(place_arm == "arm1")    {
         failed_pick = arm2_.PickPart(part_pose, product_type);
         std::vector<double> exchange_joint_pose = {0, 1.5, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
         arm2_.SendRobotToJointValues(exchange_joint_pose);
@@ -268,46 +268,21 @@ bool AriacOrderManager::PickPartExchange(geometry_msgs::Pose part_pose, std::str
     return failed_pick;
 }
 
-bool AriacOrderManager::PickPartFlip(geometry_msgs::Pose part_pose, std::string product_type, std::string pick_arm, std::string place_arm) {
+bool AriacOrderManager::PickPartFlip(geometry_msgs::Pose part_pose, std::string product_type, std::string pick_arm) {
     bool failed_pick;
-    geometry_msgs::Pose exchange_pose;
-    exchange_pose.position.x = 0.27;
-    exchange_pose.position.y = 0;
-    exchange_pose.position.z = 1.0;
-    // exchange_pose.orientation.x = 0.707;
-    // exchange_pose.orientation.w = 0.707;
 
     if(pick_arm == "arm1") {
-        // failed_pick = arm1_.PickPart(part_pose, product_type);
-        // std::vector<double> exchange_joint_pose = {0, 4.6, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-        // auto flip_pose = arm1_.getJointStates();
-        // flip_pose[0] += 0.5;
-        // std::vector<double> flip_joint_pose = {0, 3.14, -2, 2.6, 3.9, 0, 0};
-        // arm1_.SendRobotToJointValues(flip_joint_pose);
-        // part_pose.position.y -= 0.05;
-        // part_pose.orientation.x = 0.707;
-        // part_pose.orientation.w = 0.707;
-
+        part_pose.orientation.x = 0.707;
+        part_pose.orientation.w = 0.707;
         arm1_.DropPartFlipped(part_pose);
-    }
+    }   
     else {
-        failed_pick = arm2_.PickPart(part_pose, product_type);
-        std::vector<double> exchange_joint_pose = {0.75, 1.5, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-        arm2_.SendRobotToJointValues(exchange_joint_pose);
-        arm2_.DropPartExchange(exchange_pose);
-    }
-
-    if(place_arm=="arm1") {
-        std::vector<double> exchange_joint_pose = {0, 4.6, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-        arm1_.SendRobotToJointValues(exchange_joint_pose);
-        failed_pick = arm1_.PickPart(exchange_pose, product_type);
-    }
-    else {
-        std::vector<double> exchange_joint_pose = {0.75, 1.5, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
-        arm2_.SendRobotToJointValues(exchange_joint_pose);
-        failed_pick = arm2_.PickPart(exchange_pose, product_type);
-    }
+        part_pose.orientation.x = 0.707;
+        part_pose.orientation.w = 0.707;
+        arm2_.DropPartFlipped(part_pose);
+    } 
 }
+
 
 
 bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::Pose> product_type_pose, int agv_id) {
@@ -323,31 +298,31 @@ bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::
     if(product_type == "pulley_part")
         part_pose.position.z += 0.08;
     //--task the robot to pick up this part
-
+    bool failed_pick;
     if(agv_id==1) {
         if(part_pose.position.y > 0) {
 
             ROS_WARN_STREAM("Arm 1 picking up the part...");
-            if(product_type == "pulley_part") bool failed_pick = PickPartFlip(part_pose, product_type, "arm1", "arm1");
-            else bool failed_pick = arm1_.PickPart(part_pose,product_type);
+            if(product_type == "pulley_part") failed_pick = PickPartFlip(part_pose, product_type, "arm1");
+            failed_pick = arm1_.PickPart(part_pose,product_type);
 
         }
         else {
             ROS_WARN_STREAM("Arm 2 picking the part and exchanging....");
-            if(product_type == "pulley_part") bool failed_pick = PickPartFlip(part_pose, product_type, "arm2", "arm1");
-            else bool failed_pick = PickPartExchange(part_pose, product_type, "arm2", "arm1");
+            if(product_type == "pulley_part") failed_pick = PickPartFlip(part_pose, product_type, "arm2");
+            failed_pick = PickPartExchange(part_pose, product_type, "arm2", "arm1");
         }
     }
     else {
         if(part_pose.position.y < 0) {
             ROS_WARN_STREAM("Arm 2 picking up the part...");
-            if(product_type == "pulley_part") bool failed_pick = PickPartFlip(part_pose, product_type, "arm2", "arm2");
-            else bool failed_pick = arm2_.PickPart(part_pose, product_type);
+            if(product_type == "pulley_part") failed_pick = PickPartFlip(part_pose, product_type, "arm2");
+            failed_pick = arm2_.PickPart(part_pose, product_type);
         }
         else {
             ROS_WARN_STREAM("Arm 1 picking the part and exchanging...");
-            if(product_type == "pulley_part") bool failed_pick = PickPartFlip(part_pose, product_type, "arm1", "arm2");
-            else bool failed_pick = PickPartExchange(part_pose, product_type, "arm1", "arm2");
+            if(product_type == "pulley_part") failed_pick = PickPartFlip(part_pose, product_type, "arm1");
+            failed_pick = PickPartExchange(part_pose, product_type, "arm1", "arm2");
         }
     }
 
