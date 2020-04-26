@@ -134,24 +134,13 @@ bool AriacOrderManager::CheckOrderUpdate(int count, int agv_id) {
     auto prev__products = received_orders_[0].shipments[0].products;
     auto updated_products = received_orders_[1].shipments[0].products;
 
-    // ROS_WARN_STREAM("The updated order is: ");
-    // for(auto x: updated_products) {
-    //     ROS_INFO_STREAM(x);
-    // }
-
     std::deque <osrf_gear::Product> old_kit;
-
-    // for(auto old_order: prev__products) {
-    //     old_kit.push_back(old_order);
-    // }
+   
     for(int i=0; i<count;i++){                  // Pushing orders fulfilled in a vector and updating it
         old_kit.push_back(prev__products[i]);
     }
 
-    // ROS_INFO_STREAM("Kit on the AGV consists of...");
-    // for(int i=0; i<old_kit.size(); i++) {
-    //     ROS_INFO_STREAM("Part : " << old_kit.at(i));
-    // }
+   
 
     ROS_WARN_STREAM("Updating the kit...");
 
@@ -260,9 +249,10 @@ bool AriacOrderManager::PickPartExchange(geometry_msgs::Pose part_pose, std::str
         std::vector<double> exchange_joint_pose = {0, 4.6, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
         arm1_.SendRobotToJointValues(exchange_joint_pose);
         arm1_.DropPartExchange(exchange_pose);
-        exchange_joint_pose = {0.75, 1.5, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
+        exchange_joint_pose = {0.25, 1.5, -1.25, 2.4, 3.6, -1.51, 0};    //{lin_arm, shoulder_pan, shoulder_lift, elbow, w1, w2, w3}
         arm2_.SendRobotToJointValues(exchange_joint_pose);
-        exchange_pose.position.z -= 0.07;
+        exchange_pose.position.z -= 0.05;
+        ROS_INFO_STREAM("Exchange pose: " << exchange_pose.position.y);
         failed_pick = arm2_.PickPart(exchange_pose, product_type);   
     }
     return failed_pick;
@@ -352,9 +342,19 @@ bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::
         StampedPose_out.pose.position.y += 0.2;
         //ROS_INFO_STREAM("StampedPose_out " << StampedPose_out.pose.position.x);
     }
-    auto result = arm1_.DropPart(StampedPose_out.pose);
-    bool quality_check = camera_.CheckQualityControl(agv_id, StampedPose_out.pose);
+    bool result;
+    if(agv_id==1) result = arm1_.DropPart(StampedPose_out.pose);
+    else result = arm2_.DropPart(StampedPose_out.pose);
+    bool discard_flag = camera_.CheckQualityControl(agv_id, StampedPose_out.pose);
     ROS_WARN_STREAM("Dropped a part on AGV tray!");
+
+    if(discard_flag) {
+        ROS_WARN_STREAM("Bad part, discarding....");
+        StampedPose_out.pose.position.z -= 0.1;
+        if(agv_id==1) arm1_.DiscardPart(StampedPose_out.pose);
+        else arm2_.DiscardPart(StampedPose_out.pose);
+        return discard_flag;
+    }
 
     return result;
 }
@@ -391,30 +391,17 @@ void AriacOrderManager::ExecuteOrder() {
             ROS_INFO_STREAM("AGV ID: " << agv_id);
             for (const auto &product: products){
                 ros::spinOnce();
-                // ROS_INFO_STREAM("Here 3");
                 product_type_pose_.first = product.type;
-                //ROS_INFO_STREAM("Product type: " << product_type_pose_.first);
                 product_type_pose_.second = product.pose;
-                // ROS_INFO_STREAM("Order Count: " << i);
-                // do {
-                //     pick_n_place_success =  PickAndPlace(product_type_pose_, agv_id);    
-                // }
-                // while(pick_n_place_success);               // The condition is reversed
-                pick_n_place_success = PickAndPlace(product_type_pose_, agv_id);
+                discard_part_jump:    
+                pick_n_place_success =  PickAndPlace(product_type_pose_, agv_id);    
+                if(pick_n_place_success) goto discard_part_jump;
                 count++;
                 update_check_success =  CheckOrderUpdate(count, agv_id);
-                if (update_check_success==true){
-                    goto update_check_jump;
-                }
             }
             ros::Duration(30.0).sleep();  //Waiting for 30 seconds
             ros::spinOnce();
             update_check_success =  CheckOrderUpdate(count, agv_id);
-            // do {
-            //     update_check_success =  CheckOrderUpdate();
-            // } 
-            // while(!update_check_success);
-
             update_check_jump:
             int finish=1;
             ros::Duration(2.0).sleep();

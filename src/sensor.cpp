@@ -34,15 +34,15 @@ camera4_part_list{}{
                                                 &AriacSensorManager::QualitySensor2Callback, this);
 
     
-    camera1_frame_counter_ = 0;
-    camera2_frame_counter_ = 0;
-    camera3_frame_counter_ = 0;
-    camera4_frame_counter_ = 0;
-    camera5_frame_counter_ = 0;
-    camera6_frame_counter_ = 0;
-    camera7_frame_counter_ = 0;
-    camera8_frame_counter_ = 0;
-    camera9_frame_counter_ = 0;
+    camera1_frame_counter_ = 1;
+    camera2_frame_counter_ = 1;
+    camera3_frame_counter_ = 1;
+    camera4_frame_counter_ = 1;
+    camera5_frame_counter_ = 1;
+    camera6_frame_counter_ = 1;
+    camera7_frame_counter_ = 1;
+    camera8_frame_counter_ = 1;
+    camera9_frame_counter_ = 1;
 
 
     init_ = true;

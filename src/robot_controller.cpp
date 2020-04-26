@@ -397,10 +397,9 @@ bool RobotController::DiscardPart(geometry_msgs::Pose part_pose) {
     this->GripperToggle(false);
     ros::spinOnce();
     discard_flag = true;
-    this->SendRobotToJointValues(agv_drop_position_);
-
-
+    // this->SendRobotToJointValues(agv_drop_position_);
     ROS_WARN_STREAM("Discarded Part!");
+    this->SendRobotHome();
     return discard_flag;
 }
 
