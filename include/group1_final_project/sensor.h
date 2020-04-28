@@ -35,10 +35,9 @@ public:
     void LogicalCamera7Callback(const osrf_gear::LogicalCameraImage::ConstPtr &);
     void LogicalCamera8Callback(const osrf_gear::LogicalCameraImage::ConstPtr &);
     void LogicalCamera9Callback(const osrf_gear::LogicalCameraImage::ConstPtr &);
-
     void QualitySensor1Callback(const osrf_gear::LogicalCameraImage::ConstPtr &);
     void QualitySensor2Callback(const osrf_gear::LogicalCameraImage::ConstPtr &);
-
+    osrf_gear::LogicalCameraImage GetAGVPartsPose(int agv_id);
     bool CheckQualityControl(int camera_id, geometry_msgs::Pose part_pose);
     geometry_msgs::Pose GetPartPose(const std::string& src_frame,
                                     const std::string& target_frame);

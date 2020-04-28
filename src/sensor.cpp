@@ -166,8 +166,8 @@ void AriacSensorManager::LogicalCamera1Callback(const osrf_gear::LogicalCameraIm
     ROS_INFO_STREAM_THROTTLE(50,
                              "Logical camera 1: '" << image_msg->models.size() << "' objects.");
     
-    if (image_msg->models.size() == 0)
-        ROS_ERROR_STREAM("Logical Camera 1 does not see anything");
+    // if (image_msg->models.size() == 0)
+    //     ROS_ERROR_STREAM("Logical Camera 1 does not see anything");
 
     current_parts_1_ = *image_msg;
     ROS_INFO_STREAM_THROTTLE(50, "Logical Camera Sensor 1 output:   " << current_parts_2_);
@@ -179,8 +179,8 @@ void AriacSensorManager::LogicalCamera2Callback(const osrf_gear::LogicalCameraIm
     ROS_INFO_STREAM_THROTTLE(50,
                              "Logical camera 2: '" << image_msg->models.size() << "' objects.");
     
-    if (image_msg->models.size() == 0)
-        ROS_ERROR_STREAM("Logical Camera 2 does not see anything");
+    // if (image_msg->models.size() == 0)
+    //     ROS_ERROR_STREAM("Logical Camera 2 does not see anything");
 
     current_parts_2_ = *image_msg;
     ROS_INFO_STREAM_THROTTLE(50, "Logical Camera Sensor 2 output:   " << current_parts_2_);
@@ -192,8 +192,8 @@ void AriacSensorManager::LogicalCamera3Callback(const osrf_gear::LogicalCameraIm
     if (init_) return;
     ROS_INFO_STREAM_THROTTLE(10,
                              "Logical camera 3: '" << image_msg->models.size() << "' objects.");
-    if (image_msg->models.size() == 0)
-        ROS_ERROR_STREAM("Logical Camera 3 does not see anything");
+    // if (image_msg->models.size() == 0)
+    //     ROS_ERROR_STREAM("Logical Camera 3 does not see anything");
 
     current_parts_3_ = *image_msg;
     this->BuildProductFrames(3);
@@ -261,7 +261,7 @@ void AriacSensorManager::LogicalCamera8Callback(const osrf_gear::LogicalCameraIm
 
     current_parts_8_ = *image_msg;
     // ROS_INFO_STREAM("Logical Camera Sensor 8 output:   " << current_parts_8_);
-    this->BuildProductFrames(8);
+    // this->BuildProductFrames(8);
 }
 
 void AriacSensorManager::LogicalCamera9Callback(const osrf_gear::LogicalCameraImage::ConstPtr & image_msg){
@@ -274,11 +274,13 @@ void AriacSensorManager::LogicalCamera9Callback(const osrf_gear::LogicalCameraIm
 
     current_parts_9_ = *image_msg;
     // ROS_INFO_STREAM("Logical Camera Sensor 9 output:   " << current_parts_9_);
-    this->BuildProductFrames(9);
+    // this->BuildProductFrames(9);
 }
 
-
-
+osrf_gear::LogicalCameraImage AriacSensorManager::GetAGVPartsPose(int agv_id) {
+    if (agv_id==1) return current_parts_8_;
+    else return current_parts_9_;
+}
 
 void AriacSensorManager::BuildProductFrames(int camera_id){
     if (camera_id == 1) {
@@ -385,6 +387,12 @@ void AriacSensorManager::BuildProductFrames(int camera_id){
         init_cam4 = true;
 
     }
+
+    // if (camera_id == 8) {
+    //     for(auto& msg : current_parts_8_.models) {
+
+    //     }
+    // }
     
 }
 
@@ -418,7 +426,6 @@ geometry_msgs::Pose AriacSensorManager::GetPartPose(const std::string& src_frame
         this->BuildProductFrames(7);
         ros::spinOnce();
         ros::Duration(1.0).sleep();
-
         part_pose = this->GetPartPose(src_frame, target_frame);
     }
 

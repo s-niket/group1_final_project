@@ -32,8 +32,9 @@ public:
     bool PickPartAtAGV(osrf_gear::Product final_product,geometry_msgs::Pose pickup, int agv_id);
     std::vector<osrf_gear::Product> RemovePartFromList(osrf_gear::Product part, std::vector<osrf_gear::Product> product_list);
     std::map<std::string, std::list<std::pair<std::string,geometry_msgs::Pose>>> GetOrder();
-    bool PickAndPlace(std::pair<std::string,geometry_msgs::Pose> object_prop,int agvnum);
+    bool PickAndPlace(std::pair<std::string,geometry_msgs::Pose> object_prop,int agvnum, int order_count);
     bool PickPartFlip(geometry_msgs::Pose part_pose, std::string product_type, std::string pick_arm);
+    void CheckPartDrop(int agv_id, int order_count, std::string product_frame);
     bool PickPartExchange(geometry_msgs::Pose part_pose, std::string product_type, std::string arm1, std::string arm2);
     void SubmitAGV(int num);
 

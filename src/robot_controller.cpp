@@ -176,14 +176,14 @@ void RobotController::GoToTarget(
             robot_move_group_.computeCartesianPath(waypoints, 0.01, 0.0, traj, true);
 
     ROS_WARN_STREAM("Fraction: " << fraction * 100);
-    ros::Duration(2.0).sleep();
+    ros::Duration(1.0).sleep();
 
     robot_planner_.trajectory_ = traj;
 
     //if (fraction >= 0.3) {
     // ROS_INFO_STREAM("Delay");
     robot_move_group_.execute(robot_planner_);
-    ros::Duration(3.0).sleep();
+    ros::Duration(1.0).sleep();
 //    } else {
 //        ROS_ERROR_STREAM("Safe Trajectory not found!");
 //    }
@@ -197,10 +197,10 @@ void RobotController::SendRobotHome() {
     spinner.start();
     if (this->Planner()) {
         robot_move_group_.move();
-        ros::Duration(3.0).sleep();
+        ros::Duration(1.0).sleep();
     }
 
-     ros::Duration(2.0).sleep();
+    // ros::Duration(2.0).sleep();
      
 }
 
@@ -211,10 +211,10 @@ void RobotController::SendRobotEnd() {
     spinner.start();
     if (this->Planner()) {
         robot_move_group_.move();
-        ros::Duration(3.0).sleep();
+        ros::Duration(1.0).sleep();
     }
 
-     ros::Duration(2.0).sleep();
+     // ros::Duration(2.0).sleep();
 
 }
 
@@ -227,7 +227,7 @@ void RobotController::SendRobotToJointValues(std::vector<double> joint_values) {
     if (this->Planner()) {
         ROS_INFO_STREAM("Going to joint value...");
         robot_move_group_.move();
-        ros::Duration(4.0).sleep();
+        ros::Duration(2.0).sleep();
     }  
 }
 
@@ -275,6 +275,10 @@ bool RobotController::DropPart(geometry_msgs::Pose part_pose) {
         this->SendRobotToJointValues(agv_drop_position_);
         this->GoToTarget(part_pose);
 
+        if(!gripper_state_) {
+            ROS_WARN_STREAM("Part dropped...picking up from the dropped position and picking...");
+            return !gripper_state_;   // true
+        }
         // this->GoToTarget(part_pose);
         ros::Duration(2.0).sleep();
         ROS_INFO_STREAM("Actuating the gripper...");
@@ -344,7 +348,7 @@ bool RobotController::DropPartFlipped(geometry_msgs::Pose part_pose) {
     }
 
     target_pose_.position.x -= 0.2;
-    target_pose_.position.z += 0.2;
+    target_pose_.position.z += 0.3;
     this->GoToTarget(target_pose_);
 
     target_pose_.position.x += 0.4;

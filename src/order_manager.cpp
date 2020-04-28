@@ -125,6 +125,66 @@ bool AriacOrderManager::PickPartAtAGV(osrf_gear::Product final_product, geometry
 
 }
 
+void AriacOrderManager::CheckPartDrop(int agv_id, int count, std::string product_frame) {
+    auto order_products = received_orders_[0].shipments[0].products;
+    osrf_gear::LogicalCameraImage cam_image_agv;
+    if(agv_id==1) cam_image_agv = camera_.GetAGVPartsPose(agv_id);
+    else cam_image_agv = camera_.GetAGVPartsPose(agv_id);
+    std::vector<osrf_gear::Product> fulfilled_products;
+    
+
+    for(int i=0; i<=count; i++) {
+        fulfilled_products.push_back(order_products[i]);
+    }
+
+    auto parts_on_agv = cam_image_agv.models;
+    // for(auto x : parts_on_agv) {
+    //     ROS_INFO_STREAM("Parts on AGV: " << x );
+    // }
+
+    // for(auto x : fulfilled_products) {
+    //     ROS_INFO_STREAM("Fulfilled products: " << x);
+    // }
+
+    for(int i=0; i<parts_on_agv.size(); i++) {
+        for(int j=0; j<fulfilled_products.size(); j++) {
+            if(fulfilled_products[j].type == parts_on_agv[i].type) {
+                geometry_msgs::PoseStamped StampedPose_in_right,StampedPose_out_right, StampedPose_in_wrong,StampedPose_out_wrong;
+                if(agv_id==1) {
+                    StampedPose_in_right.header.frame_id = "/kit_tray_1";
+                    StampedPose_in_wrong.header.frame_id = "/logical_camera_8_frame";
+                }
+                else {
+                    StampedPose_in_right.header.frame_id = "/kit_tray_2";
+                    StampedPose_in_wrong.header.frame_id = "/logical_camera_9_frame";
+                }
+                StampedPose_in_wrong.pose = parts_on_agv[i].pose;
+                StampedPose_in_right.pose = fulfilled_products[i].pose;
+                part_tf_listener_.transformPose("/world", StampedPose_in_right, StampedPose_out_right);
+                part_tf_listener_.transformPose("/world", StampedPose_in_wrong, StampedPose_out_wrong);
+                ROS_WARN_STREAM("Product Frame: " << product_frame);
+                ROS_WARN_STREAM("Part " << fulfilled_products[j].type  << " should be at: " << StampedPose_out_right.pose.position);
+                if(StampedPose_out_right.pose.position.x != StampedPose_out_wrong.pose.position.x || StampedPose_out_right.pose.position.y != StampedPose_out_wrong.pose.position.y) {
+                    ROS_WARN_STREAM("Part is at : " << StampedPose_out_wrong.pose);
+                    if(agv_id==1) {
+                        auto temp_pose = StampedPose_out_right.pose;
+                        temp_pose.position.z += 0.2;
+                        arm1_.GoToTarget(temp_pose);
+                        arm1_.PickPart(StampedPose_out_wrong.pose, fulfilled_products[j].type);
+                        StampedPose_out_right.pose.position.z += 0.2;
+                        arm1_.DropPart(StampedPose_out_right.pose);
+                    }
+                    else {
+                        arm2_.PickPart(StampedPose_out_wrong.pose, fulfilled_products[j].type);
+                        arm2_.DropPart(StampedPose_out_right.pose);    
+                    }
+                }
+            }
+        }
+    }
+
+}
+
 bool AriacOrderManager::CheckOrderUpdate(int count, int agv_id) {
     if(received_orders_.size() < 2) return false;
 
@@ -190,7 +250,7 @@ bool AriacOrderManager::CheckOrderUpdate(int count, int agv_id) {
     for(auto part: updated_products) {
         ROS_INFO_STREAM("Part " << part);
         std::pair<std::string,geometry_msgs::Pose> product_type_pose (part.type, part.pose);
-        PickAndPlace(product_type_pose, agv_id);       
+        PickAndPlace(product_type_pose, agv_id, count);       
     }
 
 
@@ -275,7 +335,7 @@ bool AriacOrderManager::PickPartFlip(geometry_msgs::Pose part_pose, std::string 
 
 
 
-bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::Pose> product_type_pose, int agv_id) {
+bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::Pose> product_type_pose, int agv_id, int order_count) {
     std::string product_type = product_type_pose.first;
     ROS_WARN_STREAM("Product type >>>> " << product_type);
     //ROS_INFO_STREAM("Prod frame >>>> " << this->GetProductFrame(product_type));
@@ -348,6 +408,11 @@ bool AriacOrderManager::PickAndPlace(const std::pair<std::string,geometry_msgs::
     bool discard_flag = camera_.CheckQualityControl(agv_id, StampedPose_out.pose);
     ROS_WARN_STREAM("Dropped a part on AGV tray!");
 
+    if(result) {
+        CheckPartDrop(agv_id, order_count, product_frame);
+        return !result;
+    }
+
     if(discard_flag) {
         ROS_WARN_STREAM("Bad part, discarding....");
         StampedPose_out.pose.position.z -= 0.1;
@@ -394,7 +459,7 @@ void AriacOrderManager::ExecuteOrder() {
                 product_type_pose_.first = product.type;
                 product_type_pose_.second = product.pose;
                 discard_part_jump:    
-                pick_n_place_success =  PickAndPlace(product_type_pose_, agv_id);    
+                pick_n_place_success =  PickAndPlace(product_type_pose_, agv_id, count);    
                 if(pick_n_place_success) goto discard_part_jump;
                 count++;
                 update_check_success =  CheckOrderUpdate(count, agv_id);
